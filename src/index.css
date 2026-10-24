@@ -1,19 +1,16 @@
 
-:root {
-  font-family: Arial, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-}
-
 * {
   box-sizing: border-box;
 }
 
-body {
+html,
+body,
+#root {
   margin: 0;
-  min-width: 320px;
+  width: 100%;
+  min-height: 100%;
 }
 
-#root {
-  min-height: 100vh;
+body {
+  font-family: Arial, sans-serif;
 }
