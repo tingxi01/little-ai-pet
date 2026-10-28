@@ -7,6 +7,10 @@ Little AI Pet is a full-stack portfolio project exploring how a small local lang
 
 Rather than letting an LLM control the entire application, the system separates **deterministic pet-state logic and safety constraints** from **AI-generated dialogue**. This keeps pet behavior predictable while allowing responses to feel more personal.
 
+## Preview
+<img width="1470" height="797" alt="Screenshot 2026-10-28 at 2 54 09 PM" src="https://github.com/user-attachments/assets/89c90de8-829a-40ad-ba04-4bae3ba07e76" />
+
+
 > **Deployment:** Local development project. The AI backend requires Ollama running on the same computer; this repository does not currently provide a hosted demo.
 
 ## Project at a Glance
