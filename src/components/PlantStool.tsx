@@ -1,14 +1,23 @@
 
 import { useGLTF, useCursor } from "@react-three/drei";
-import { useMemo, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-export default function PlantStool() {
+type Props = {
+  isOn: boolean;
+  onToggle: () => void;
+};
+
+export default function PlantStool({
+  isOn,
+  onToggle,
+}: Props) {
   const { scene } = useGLTF("/models/plant-stool.glb");
 
-  const [isOn, setIsOn] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const lightRef = useRef<THREE.PointLight>(null);
 
+  const [hovered, setHovered] = useState(false);
   useCursor(hovered);
 
   const model = useMemo(() => {
@@ -26,7 +35,8 @@ export default function PlantStool() {
     const size = bounds.getSize(new THREE.Vector3());
 
     const targetHeight = 1.7;
-    const scale = targetHeight / Math.max(size.y, 0.001);
+    const scale =
+      targetHeight / Math.max(size.y, 0.001);
 
     cloned.position.set(
       -center.x,
@@ -41,6 +51,17 @@ export default function PlantStool() {
     return wrapper;
   }, [scene]);
 
+  useFrame((_, delta) => {
+    if (!lightRef.current) return;
+
+    lightRef.current.intensity = THREE.MathUtils.damp(
+      lightRef.current.intensity,
+      isOn ? 0.65 : 0,
+      5,
+      delta
+    );
+  });
+
   return (
     <group
       position={[-4.0, -1.4, 0.1]}
@@ -48,28 +69,29 @@ export default function PlantStool() {
       rotation={[0, 0.3, 0]}
       onClick={(event) => {
         event.stopPropagation();
-        setIsOn((previous) => !previous);
+        onToggle();
       }}
       onPointerOver={(event) => {
         event.stopPropagation();
         setHovered(true);
       }}
-      onPointerOut={() => setHovered(false)}
+      onPointerOut={() => {
+        setHovered(false);
+      }}
     >
       {/* Original mushroom lamp, stool, books and bunny */}
       <primitive object={model} />
 
-      {/* Gentle warm light when switched on */}
-      {isOn && (
-        <pointLight
-          position={[-0.35, 1.4, 0.35]}
-          color="#FFE4B8"
-          intensity={0.35}
-          distance={1.8}
-          decay={2}
-          castShadow={false}
-        />
-      )}
+      {/* Smooth warm mushroom light */}
+      <pointLight
+        ref={lightRef}
+        position={[-0.35, 1.4, 0.35]}
+        color="#FFE4B8"
+        intensity={0}
+        distance={2.5}
+        decay={2}
+        castShadow={false}
+      />
     </group>
   );
 }

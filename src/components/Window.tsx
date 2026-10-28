@@ -1,8 +1,10 @@
 
 import { useGLTF } from "@react-three/drei";
-import { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TimeOfDay } from "../lib/pet";
+import WindowScenery from "./WindowScenery";
 
 type WindowProps = {
   timeOfDay: TimeOfDay;
@@ -16,6 +18,8 @@ export default function Window({
   onBlinds,
 }: WindowProps) {
   const { scene } = useGLTF("/models/window-blinds.glb");
+
+  const blindsRef = useRef<THREE.Group>(null);
 
   const blinds = useMemo(() => {
     const cloned = scene.clone(true);
@@ -47,70 +51,30 @@ export default function Window({
     return wrapper;
   }, [scene]);
 
-  const skyColors: Record<TimeOfDay, string> = {
-    morning: "#F9DDBB",
-    afternoon: "#D8E9ED",
-    evening: "#F6AD83",
-    night: "#29354F",
-  };
+  useFrame((_, delta) => {
+    if (!blindsRef.current) return;
 
-  const isNight = timeOfDay === "night";
-  const isEvening = timeOfDay === "evening";
+    const smoothing = 1 - Math.exp(-delta * 3.5);
 
-  const sunColor =
-    timeOfDay === "morning"
-      ? "#FFF0C9"
-      : isEvening
-      ? "#FFD5A0"
-      : "#FFF8DB";
+    blindsRef.current.position.y = THREE.MathUtils.lerp(
+      blindsRef.current.position.y,
+      blindsOpen ? 0.65 : 0,
+      smoothing
+    );
+
+    blindsRef.current.scale.y = THREE.MathUtils.lerp(
+      blindsRef.current.scale.y,
+      blindsOpen ? 0.4 : 1,
+      smoothing
+    );
+  });
 
   return (
     <group position={[0, 2.35, -2.85]}>
-      {/* Sky */}
-      <mesh>
-        <planeGeometry args={[3.8, 2.3]} />
-        <meshBasicMaterial
-          color={skyColors[timeOfDay]}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
+      {/* Outdoor garden behind the blinds */}
+      <WindowScenery timeOfDay={timeOfDay} />
 
-      {/* Sun or moon */}
-      <mesh
-        position={[
-          1.05,
-          isEvening ? -0.35 : 0.45,
-          0.02,
-        ]}
-      >
-        <circleGeometry
-          args={[isNight ? 0.2 : 0.27, 32]}
-        />
-        <meshBasicMaterial
-          color={isNight ? "#F7F0DB" : sunColor}
-          toneMapped={false}
-        />
-      </mesh>
-
-      {/* Night stars */}
-      {isNight &&
-        [
-          [-1.2, 0.7],
-          [-0.5, 0.85],
-          [0.25, 0.6],
-          [0.8, -0.1],
-        ].map(([x, y], index) => (
-          <mesh key={index} position={[x, y, 0.03]}>
-            <circleGeometry args={[0.025, 12]} />
-            <meshBasicMaterial
-              color="#FFF7DC"
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-
-      {/* Wooden frame */}
+      {/* Original wooden window frame */}
       {[
         [0, 1.17, 3.95, 0.13],
         [0, -1.17, 3.95, 0.13],
@@ -119,6 +83,7 @@ export default function Window({
       ].map(([x, y, width, height], index) => (
         <mesh key={index} position={[x, y, 0.05]}>
           <boxGeometry args={[width, height, 0.12]} />
+
           <meshStandardMaterial
             color="#E7C49E"
             roughness={1}
@@ -126,10 +91,10 @@ export default function Window({
         </mesh>
       ))}
 
-      {/* Clickable blinds */}
+      {/* Clickable animated blinds */}
       <group
-        position={[0, blindsOpen ? 0.65 : 0, 0.18]}
-        scale={[1, blindsOpen ? 0.4 : 1, 1]}
+        ref={blindsRef}
+        position={[0, 0, 0.18]}
         onClick={(event) => {
           event.stopPropagation();
           onBlinds?.();

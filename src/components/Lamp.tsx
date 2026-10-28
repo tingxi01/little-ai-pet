@@ -1,12 +1,22 @@
 
-import { useGLTF } from "@react-three/drei";
-import { useMemo, useState } from "react";
+import { useGLTF, useCursor } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-export default function Lamp() {
+type Props = {
+  isOn: boolean;
+  onToggle: () => void;
+};
+
+export default function Lamp({ isOn, onToggle }: Props) {
   const { scene } = useGLTF("/models/bear-lamp.glb");
 
-  const [isOn, setIsOn] = useState(false);
+  const mainLight = useRef<THREE.PointLight>(null);
+  const secondaryLight = useRef<THREE.PointLight>(null);
+
+  const [hovered, setHovered] = useState(false);
+  useCursor(hovered);
 
   const model = useMemo(() => {
     const clone = scene.clone(true);
@@ -30,6 +40,28 @@ export default function Lamp() {
     return clone;
   }, [scene]);
 
+  useFrame((_, delta) => {
+    const fadeSpeed = 5;
+
+    if (mainLight.current) {
+      mainLight.current.intensity = THREE.MathUtils.damp(
+        mainLight.current.intensity,
+        isOn ? 2.5 : 0,
+        fadeSpeed,
+        delta
+      );
+    }
+
+    if (secondaryLight.current) {
+      secondaryLight.current.intensity = THREE.MathUtils.damp(
+        secondaryLight.current.intensity,
+        isOn ? 0.8 : 0,
+        fadeSpeed,
+        delta
+      );
+    }
+  });
+
   return (
     <group
       position={[2.75, -1.5, -1.65]}
@@ -37,40 +69,40 @@ export default function Lamp() {
       scale={2.25}
       onClick={(event) => {
         event.stopPropagation();
-        setIsOn((previous) => !previous);
+        onToggle();
       }}
-      onPointerOver={() => {
-        document.body.style.cursor = "pointer";
+      onPointerOver={(event) => {
+        event.stopPropagation();
+        setHovered(true);
       }}
       onPointerOut={() => {
-        document.body.style.cursor = "auto";
+        setHovered(false);
       }}
     >
-      {/* Original Meshy lamp */}
+      {/* Original bear lamp */}
       <primitive object={model} />
 
-      {/* Soft warm lamp lighting */}
-      {isOn && (
-        <>
-          {/* Gentle light near the lampshade */}
-          <pointLight
-            position={[-0.15, 1.15, 0.15]}
-            color="#FFD6A0"
-            intensity={2.5}
-            distance={3.5}
-            decay={2}
-          />
+      {/* Smooth main lamp light */}
+      <pointLight
+        ref={mainLight}
+        position={[-0.15, 1.15, 0.15]}
+        color="#FFD6A0"
+        intensity={0}
+        distance={3.5}
+        decay={2}
+        castShadow={false}
+      />
 
-          {/* Subtle warm light on nearby furniture */}
-          <pointLight
-            position={[-0.35, 0.85, 0.5]}
-            color="#FFE5C5"
-            intensity={0.8}
-            distance={3}
-            decay={2}
-          />
-        </>
-      )}
+      {/* Soft surrounding glow */}
+      <pointLight
+        ref={secondaryLight}
+        position={[-0.35, 0.85, 0.5]}
+        color="#FFE5C5"
+        intensity={0}
+        distance={3}
+        decay={2}
+        castShadow={false}
+      />
     </group>
   );
 }

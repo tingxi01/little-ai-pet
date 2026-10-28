@@ -1,6 +1,8 @@
 
 import type { PetAction, TimeOfDay } from "../lib/pet";
+
 import TimeLighting from "./TimeLighting";
+import SunlightEffect from "./SunlightEffect";
 
 import Carpet from "./Carpet";
 import Lamp from "./Lamp";
@@ -20,19 +22,23 @@ import CozyShelf from "./CozyShelf";
 import PlantBooks from "./PlantBooks";
 import PlantStool from "./PlantStool";
 import FloralWallArt from "./FloralWallArt";
+import PettingHearts from "./PettingHearts";
 
-// IMPORTANT: Use animated Mochi!
 import MochiAnimated from "./MochiAnimated";
+import CozyEffects from "./CozyEffects";
 
 type RoomProps = {
   timeOfDay: TimeOfDay;
   onPet: () => void;
   lastAction: PetAction | null;
   actionId: number;
+
   lampOn: boolean;
   onLamp: () => void;
+
   stoolLampOn: boolean;
   onStoolLamp: () => void;
+
   blindsOpen: boolean;
   onBlinds: () => void;
 };
@@ -51,7 +57,8 @@ export default function Room({
 }: RoomProps) {
   return (
     <group>
-      {/* Wooden floor */}
+      {/* ROOM STRUCTURE */}
+
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, -1.4, 0]}
@@ -64,8 +71,10 @@ export default function Room({
         />
       </mesh>
 
-      {/* Back wall */}
-      <mesh position={[0, 1.5, -3]} receiveShadow>
+      <mesh
+        position={[0, 1.5, -3]}
+        receiveShadow
+      >
         <planeGeometry args={[12, 6]} />
         <meshStandardMaterial
           color="#f7dfcb"
@@ -73,7 +82,6 @@ export default function Room({
         />
       </mesh>
 
-      {/* Left wall */}
       <mesh
         position={[-5, 1.5, 0]}
         rotation={[0, Math.PI / 2, 0]}
@@ -86,30 +94,39 @@ export default function Room({
         />
       </mesh>
 
-      {/* Lighting */}
-      <TimeLighting timeOfDay={timeOfDay} />
+      {/* LIGHTING */}
 
-      {/* Window */}
+      <TimeLighting
+        timeOfDay={timeOfDay}
+        blindsOpen={blindsOpen}
+      />
+
+      {/* WINDOW */}
+
       <Window
         timeOfDay={timeOfDay}
         blindsOpen={blindsOpen}
         onBlinds={onBlinds}
       />
 
-      {/* Furniture */}
+      {/* FURNITURE */}
+
       <Carpet />
+
+      {/* SOFT ANIMATED SUNLIGHT */}
+      <SunlightEffect
+        timeOfDay={timeOfDay}
+        blindsOpen={blindsOpen}
+      />
+
       <Sofa />
       <Cushions />
 
-      {/* Animated Mochi */}
-      <MochiAnimated
-        onPet={onPet}
-        lastAction={lastAction}
-        actionId={actionId}
+      <Lamp
+        isOn={lampOn}
+        onToggle={onLamp}
       />
 
-      <Lamp />
-      <Plant />
       <WoodenTable />
       <Plushie />
       <BathBasket />
@@ -119,9 +136,39 @@ export default function Room({
       <Bookshelve />
       <WallDecor />
       <CozyShelf />
-      <PlantBooks />
-      <PlantStool />
+
+      <PlantStool
+        isOn={stoolLampOn}
+        onToggle={onStoolLamp}
+      />
+
       <FloralWallArt />
+
+      {/* PLANTS */}
+
+      <Plant />
+      <PlantBooks />
+
+      {/* MOCHI */}
+
+      <MochiAnimated
+        onPet={onPet}
+        lastAction={lastAction}
+        actionId={actionId}
+      />
+
+      <PettingHearts
+        actionId={actionId}
+        active={lastAction === "pet"}
+      />
+
+      {/* COZY EFFECTS */}
+
+      <CozyEffects
+        timeOfDay={timeOfDay}
+        lastAction={lastAction}
+        actionId={actionId}
+      />
     </group>
   );
 }
