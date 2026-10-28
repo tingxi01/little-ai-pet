@@ -8,6 +8,7 @@ import PetHUD from "./components/PetHUD";
 import BackgroundMusic from "./components/BackgroundMusic";
 
 import { usePetGame } from "./hooks/usePetGame";
+
 import { useSoundEffects } from "./hooks/useSoundEffects";
 
 import type {
@@ -18,7 +19,6 @@ import type {
 
 import "./App.css";
 
-// Determine time of day from the actual clock
 function getTimeOfDay(date: Date): TimeOfDay {
   const hour = date.getHours();
 
@@ -30,21 +30,19 @@ function getTimeOfDay(date: Date): TimeOfDay {
 }
 
 export default function App() {
-  // =========================
-  // PET GAME
-  // =========================
+  const [petSleeping, setPetSleeping] =
+    useState(false);
 
-  const { pet, act, setTemperament } = usePetGame();
+  const {
+    pet,
+    act,
+    autonomousEvent,
+  } = usePetGame({
+    sleeping: petSleeping,
+  });
 
-  // =========================
-  // SOUND EFFECTS
-  // =========================
-
-  const { playSound, stopSound } = useSoundEffects();
-
-  // =========================
-  // BACKGROUND MUSIC
-  // =========================
+  const { playSound, stopSound } =
+    useSoundEffects();
 
   const [muted, setMuted] = useState(false);
 
@@ -52,21 +50,20 @@ export default function App() {
     setMuted((previous) => !previous);
   };
 
-  // =========================
-  // TIME SETTINGS
-  // =========================
-
   const [timeMode, setTimeMode] =
     useState<TimeMode>("auto");
 
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(
+    () => new Date()
+  );
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       setNow(new Date());
     }, 30_000);
 
-    return () => window.clearInterval(interval);
+    return () =>
+      window.clearInterval(interval);
   }, []);
 
   const currentTime: TimeOfDay =
@@ -74,11 +71,8 @@ export default function App() {
       ? getTimeOfDay(now)
       : timeMode;
 
-  // =========================
-  // ROOM INTERACTIONS
-  // =========================
-
-  const [lampOn, setLampOn] = useState(false);
+  const [lampOn, setLampOn] =
+    useState(false);
 
   const [stoolLampOn, setStoolLampOn] =
     useState(false);
@@ -101,69 +95,72 @@ export default function App() {
     setBlindsOpen((previous) => !previous);
   };
 
-  // =========================
-  // PET ANIMATION ACTIONS
-  // =========================
-
   const [lastAction, setLastAction] =
     useState<PetAction | null>(null);
 
-  const [actionId, setActionId] = useState(0);
+  const [actionId, setActionId] =
+    useState(0);
 
-  const [petSleeping, setPetSleeping] =
-    useState(false);
+  // ==========================================
+  // USER INTERACTIONS
+  // ==========================================
 
   const onAction = (action: PetAction) => {
-    act(action);
+    // Repeated Sleep clicks should not restart
+    // sleep or give additional energy.
+    if (
+      action === "sleep" &&
+      petSleeping
+    ) {
+      return;
+    }
+
+    // Check all care rules before triggering
+    // animations, sounds, or state changes.
+    const accepted = act(action);
+
+    if (!accepted) {
+      return;
+    }
 
     setLastAction(action);
-    setActionId((previous) => previous + 1);
+    setActionId(
+      (previous) => previous + 1
+    );
 
     if (action === "sleep") {
-      if (petSleeping) {
-        stopSound("sleep");
-        setPetSleeping(false);
-      } else {
-        playSound("sleep");
-        setPetSleeping(true);
-      }
-    } else {
-      if (petSleeping) {
-        stopSound("sleep");
-        setPetSleeping(false);
-      }
+      playSound("sleep");
+      setPetSleeping(true);
+      return;
+    }
 
-      switch (action) {
-        case "pet":
-          playSound("pet");
-          break;
+    // Any accepted non-Sleep action wakes Mochi.
+    if (petSleeping) {
+      stopSound("sleep");
+      setPetSleeping(false);
+    }
 
-        case "feed":
-          playSound("feed");
-          break;
+    switch (action) {
+      case "pet":
+        playSound("pet");
+        break;
 
-        case "play":
-          playSound("play");
-          break;
+      case "feed":
+        playSound("feed");
+        break;
 
-        default:
-          break;
-      }
+      case "play":
+        playSound("play");
+        break;
+
+      default:
+        break;
     }
   };
 
-  // =========================
-  // RENDER
-  // =========================
-
   return (
     <div className="app">
-      {/* Background music */}
       <BackgroundMusic muted={muted} />
-
-      {/* ========================= */}
-      {/* 3D ROOM */}
-      {/* ========================= */}
 
       <Canvas
         camera={{
@@ -188,6 +185,7 @@ export default function App() {
             onPet={() => onAction("pet")}
             lastAction={lastAction}
             actionId={actionId}
+            autonomousEvent={autonomousEvent}
             lampOn={lampOn}
             onLamp={toggleLamp}
             stoolLampOn={stoolLampOn}
@@ -214,14 +212,9 @@ export default function App() {
         />
       </Canvas>
 
-      {/* ========================= */}
-      {/* PET HUD */}
-      {/* ========================= */}
-
       <PetHUD
         pet={pet}
         onAction={onAction}
-        onTemperament={setTemperament}
         timeMode={timeMode}
         onTimeMode={setTimeMode}
         actualTime={now.toLocaleTimeString([], {

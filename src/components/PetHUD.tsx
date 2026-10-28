@@ -4,7 +4,6 @@ import { useState } from "react";
 import type {
   PetAction,
   PetState,
-  Temperament,
   TimeMode,
 } from "../lib/pet";
 
@@ -13,7 +12,6 @@ import "./PetHUD.css";
 type Props = {
   pet: PetState;
   onAction: (a: PetAction) => void;
-  onTemperament: (t: Temperament) => void;
   timeMode: TimeMode;
   onTimeMode: (t: TimeMode) => void;
   actualTime: string;
@@ -47,14 +45,13 @@ const actionIcons = [
   {
     action: "sleep",
     icon: "/icons/icon-sleep.png",
-    label: "Sleep / Wake Mochi",
+    label: "Let Mochi sleep",
   },
 ] as const;
 
 export default function PetHUD({
   pet,
   onAction,
-  onTemperament,
   timeMode,
   onTimeMode,
   actualTime,
@@ -80,7 +77,6 @@ export default function PetHUD({
 
   return (
     <div className="pet-hud">
-
       {/* TOP LEFT - TIME */}
 
       <div className="hud-top-left hud-panel">
@@ -244,29 +240,6 @@ export default function PetHUD({
                   {x[0].toUpperCase() + x.slice(1)}
                 </option>
               ))}
-            </select>
-          </label>
-
-          <label>
-            Mochi's temperament
-
-            <select
-              value={pet.temperament}
-              onChange={(e) =>
-                onTemperament(e.target.value as Temperament)
-              }
-            >
-              <option value="gentle">
-                Shy & gentle
-              </option>
-
-              <option value="playful">
-                Playful & curious
-              </option>
-
-              <option value="sleepy">
-                Sleepy & cuddly
-              </option>
             </select>
           </label>
 

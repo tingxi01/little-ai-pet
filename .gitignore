@@ -7,15 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,13 +24,26 @@ dist-ssr
 *.sln
 *.sw?
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
-
-# Local Mochi memory
-backend/mochi_memory.db
-
-# Environment files
-.env
+.pytest_cache/
+.coverage
+htmlcov/
 .venv/
+venv/
+env/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Local evaluation results
+mochi_evaluation_results.json
+mochi_llm_quality_results.json

@@ -1,5 +1,6 @@
 
 import type { PetAction, TimeOfDay } from "../lib/pet";
+import type { AutonomousEvent } from "../hooks/usePetGame";
 
 import TimeLighting from "./TimeLighting";
 import SunlightEffect from "./SunlightEffect";
@@ -33,6 +34,9 @@ type RoomProps = {
   lastAction: PetAction | null;
   actionId: number;
 
+  // AI-driven animation event
+  autonomousEvent: AutonomousEvent | null;
+
   lampOn: boolean;
   onLamp: () => void;
 
@@ -48,6 +52,7 @@ export default function Room({
   onPet,
   lastAction,
   actionId,
+  autonomousEvent,
   lampOn,
   onLamp,
   stoolLampOn,
@@ -114,6 +119,7 @@ export default function Room({
       <Carpet />
 
       {/* SOFT ANIMATED SUNLIGHT */}
+
       <SunlightEffect
         timeOfDay={timeOfDay}
         blindsOpen={blindsOpen}
@@ -155,6 +161,7 @@ export default function Room({
         onPet={onPet}
         lastAction={lastAction}
         actionId={actionId}
+        autonomousEvent={autonomousEvent}
       />
 
       <PettingHearts

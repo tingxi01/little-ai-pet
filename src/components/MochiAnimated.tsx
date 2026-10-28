@@ -3,13 +3,17 @@ import { useGLTF, useCursor } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+
 import type { PetAction } from "../lib/pet";
+import type { AutonomousEvent } from "../hooks/usePetGame";
+
 import Carrot from "./Carrot";
 
 type Props = {
   onPet: () => void;
   lastAction: PetAction | null;
   actionId: number;
+  autonomousEvent: AutonomousEvent | null;
 };
 
 type IdleBehavior =
@@ -23,6 +27,8 @@ type IdleBehavior =
 const BASE_Y = -0.22;
 const BASE_SCALE = 1.5;
 const DURATION = 2.5;
+
+const AI_ANIMATION_DURATION = 3;
 
 const TEST_SLEEP_EYES = false;
 
@@ -142,6 +148,7 @@ export default function MochiAnimated({
   onPet,
   lastAction,
   actionId,
+  autonomousEvent,
 }: Props) {
   const { scene } = useGLTF("/models/mochi.glb");
 
@@ -156,6 +163,23 @@ export default function MochiAnimated({
   const previousActionId = useRef(actionId);
   const sleeping = useRef(false);
 
+  // ==========================================
+  // AI ANIMATION STATE
+  // ==========================================
+
+  const previousAutonomousId = useRef<number | null>(
+    null
+  );
+
+  const autonomousStart = useRef(-100);
+
+  const autonomousAction =
+    useRef<AutonomousEvent["action"]>("idle");
+
+  // ==========================================
+  // IDLE ANIMATION STATE
+  // ==========================================
+
   const idleBehavior = useRef<IdleBehavior>("rest");
   const idleStart = useRef(0);
   const idleDuration = useRef(0);
@@ -165,27 +189,33 @@ export default function MochiAnimated({
   // LOAD ORIGINAL MOCHI
   // ==========================================
 
-  const { model, centerX, bottomY, centerZ } = useMemo(() => {
-    const cloned = scene.clone(true);
+  const { model, centerX, bottomY, centerZ } =
+    useMemo(() => {
+      const cloned = scene.clone(true);
 
-    cloned.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        object.visible = true;
-        object.castShadow = true;
-        object.receiveShadow = true;
-      }
-    });
+      cloned.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.visible = true;
+          object.castShadow = true;
+          object.receiveShadow = true;
+        }
+      });
 
-    const box = new THREE.Box3().setFromObject(cloned);
-    const center = box.getCenter(new THREE.Vector3());
+      const box = new THREE.Box3().setFromObject(
+        cloned
+      );
 
-    return {
-      model: cloned,
-      centerX: center.x,
-      bottomY: box.min.y,
-      centerZ: center.z,
-    };
-  }, [scene]);
+      const center = box.getCenter(
+        new THREE.Vector3()
+      );
+
+      return {
+        model: cloned,
+        centerX: center.x,
+        bottomY: box.min.y,
+        centerZ: center.z,
+      };
+    }, [scene]);
 
   // ==========================================
   // ANIMATION LOOP
@@ -198,28 +228,80 @@ export default function MochiAnimated({
 
     const t = clock.elapsedTime;
 
-    // Detect new button interactions
+    // ========================================
+    // DETECT USER INTERACTIONS
+    // ========================================
+
     if (actionId !== previousActionId.current) {
       previousActionId.current = actionId;
       animationStart.current = t;
 
       idleBehavior.current = "rest";
-      nextIdleTime.current = t + 4 + Math.random() * 3;
+      nextIdleTime.current =
+        t + 4 + Math.random() * 3;
+
+      // Cancel an autonomous animation when
+      // the user interacts with Mochi.
+      autonomousStart.current = -100;
+      autonomousAction.current = "idle";
 
       if (lastAction === "sleep") {
-        sleeping.current = !sleeping.current;
+        sleeping.current = true;
       } else {
         sleeping.current = false;
       }
     }
 
-    // ==========================================
+    // ========================================
+    // DETECT AUTONOMOUS AI DECISIONS
+    // ========================================
+
+    if (
+      autonomousEvent &&
+      autonomousEvent.id !==
+        previousAutonomousId.current
+    ) {
+      previousAutonomousId.current =
+        autonomousEvent.id;
+
+      autonomousAction.current =
+        autonomousEvent.action;
+
+      autonomousStart.current = t;
+
+      idleBehavior.current = "rest";
+      idleDuration.current = 0;
+
+      nextIdleTime.current =
+        t + AI_ANIMATION_DURATION + 2;
+    }
+
+    const aiElapsed =
+      t - autonomousStart.current;
+
+    const aiActive =
+      !sleeping.current &&
+      aiElapsed >= 0 &&
+      aiElapsed < AI_ANIMATION_DURATION &&
+      autonomousAction.current !== "idle";
+
+    const aiFade = aiActive
+      ? Math.sin(
+          (aiElapsed / AI_ANIMATION_DURATION) *
+            Math.PI
+        ) ** 2
+      : 0;
+
+    // ========================================
     // SLEEPING EYES
-    // ==========================================
+    // ========================================
 
     if (sleepEyesRef.current) {
       sleepEyesRef.current.visible =
-        TEST_SLEEP_EYES || sleeping.current;
+        TEST_SLEEP_EYES ||
+        sleeping.current ||
+        (aiActive &&
+          autonomousAction.current === "rest");
     }
 
     const a = t - animationStart.current;
@@ -233,9 +315,9 @@ export default function MochiAnimated({
       ? Math.min(1, (DURATION - a) * 2)
       : 0;
 
-    // ==========================================
+    // ========================================
     // CARROT ANIMATION
-    // ==========================================
+    // ========================================
 
     if (carrotRef.current) {
       const carrot = carrotRef.current;
@@ -247,11 +329,12 @@ export default function MochiAnimated({
 
       if (feeding) {
         // 0–0.7s: carrot approaches mouth
-        const approach = THREE.MathUtils.smoothstep(
-          a,
-          0,
-          0.7
-        );
+        const approach =
+          THREE.MathUtils.smoothstep(
+            a,
+            0,
+            0.7
+          );
 
         carrot.position.set(
           THREE.MathUtils.lerp(
@@ -282,7 +365,8 @@ export default function MochiAnimated({
 
         const chomp =
           a >= 0.7 && a < 2.2
-            ? 1 + Math.sin(a * 28) * 0.045
+            ? 1 +
+              Math.sin(a * 28) * 0.045
             : 1;
 
         const scale =
@@ -302,9 +386,9 @@ export default function MochiAnimated({
       }
     }
 
-    // ==========================================
+    // ========================================
     // BODY ANIMATION
-    // ==========================================
+    // ========================================
 
     let y = BASE_Y;
     let rx = 0;
@@ -315,7 +399,13 @@ export default function MochiAnimated({
     let sy = BASE_SCALE;
     let sz = BASE_SCALE;
 
-    if (sleeping.current) {
+    // AI rest uses a temporary sleeping pose.
+    const resting =
+      sleeping.current ||
+      (aiActive &&
+        autonomousAction.current === "rest");
+
+    if (resting) {
       const breath = Math.sin(t * 1.1);
 
       sy += breath * 0.015;
@@ -333,11 +423,15 @@ export default function MochiAnimated({
       ry = Math.sin(t * 0.55) * 0.018;
       y += Math.sin(t * 2) * 0.006;
 
-      // ==========================================
+      // ======================================
       // IDLE ANIMATIONS
-      // ==========================================
+      // ======================================
 
-      if (!active && t >= nextIdleTime.current) {
+      if (
+        !active &&
+        !aiActive &&
+        t >= nextIdleTime.current
+      ) {
         const behaviors: IdleBehavior[] = [
           "curious",
           "look-left",
@@ -348,7 +442,9 @@ export default function MochiAnimated({
 
         idleBehavior.current =
           behaviors[
-            Math.floor(Math.random() * behaviors.length)
+            Math.floor(
+              Math.random() * behaviors.length
+            )
           ];
 
         idleStart.current = t;
@@ -363,7 +459,8 @@ export default function MochiAnimated({
           Math.random() * 5;
       }
 
-      const idleElapsed = t - idleStart.current;
+      const idleElapsed =
+        t - idleStart.current;
 
       const idleProgress =
         idleDuration.current > 0
@@ -371,11 +468,18 @@ export default function MochiAnimated({
           : 1;
 
       const idleWeight =
-        idleProgress >= 0 && idleProgress <= 1
-          ? Math.sin(idleProgress * Math.PI) ** 2
+        idleProgress >= 0 &&
+        idleProgress <= 1
+          ? Math.sin(
+              idleProgress * Math.PI
+            ) ** 2
           : 0;
 
-      if (!active && idleWeight > 0) {
+      if (
+        !active &&
+        !aiActive &&
+        idleWeight > 0
+      ) {
         switch (idleBehavior.current) {
           case "curious":
             rz += 0.09 * idleWeight;
@@ -399,7 +503,9 @@ export default function MochiAnimated({
               idleWeight;
 
             y +=
-              Math.abs(Math.sin(idleElapsed * 8)) *
+              Math.abs(
+                Math.sin(idleElapsed * 8)
+              ) *
               0.014 *
               idleWeight;
             break;
@@ -413,21 +519,25 @@ export default function MochiAnimated({
         }
       }
 
-      // ==========================================
+      // ======================================
       // BUTTON ANIMATIONS
-      // ==========================================
+      // ======================================
 
       if (active) {
         switch (lastAction) {
           case "pet": {
             const pulse =
-              Math.abs(Math.sin(a * 11)) * fade;
+              Math.abs(Math.sin(a * 11)) *
+              fade;
 
             sy -= pulse * 0.12;
             sx += pulse * 0.08;
             sz += pulse * 0.06;
 
-            rz += Math.sin(a * 14) * 0.1 * fade;
+            rz +=
+              Math.sin(a * 14) *
+              0.1 *
+              fade;
 
             y +=
               Math.abs(Math.sin(a * 7)) *
@@ -446,7 +556,11 @@ export default function MochiAnimated({
               fade;
 
             y += hop;
-            rz += Math.sin(a * 7) * 0.1 * fade;
+
+            rz +=
+              Math.sin(a * 7) *
+              0.1 *
+              fade;
 
             sy += hop * 0.4;
             sx -= hop * 0.15;
@@ -472,9 +586,71 @@ export default function MochiAnimated({
       }
     }
 
-    // ==========================================
+    // ========================================
+    // AI-DRIVEN PHYSICAL REACTIONS
+    // ========================================
+
+    if (
+      aiActive &&
+      !active &&
+      !sleeping.current
+    ) {
+      switch (autonomousAction.current) {
+        case "ask_food": {
+          // Curious wiggle when hungry
+          rz +=
+            Math.sin(aiElapsed * 7) *
+            0.07 *
+            aiFade;
+
+          ry += 0.08 * aiFade;
+
+          y +=
+            Math.abs(
+              Math.sin(aiElapsed * 5)
+            ) *
+            0.018 *
+            aiFade;
+          break;
+        }
+
+        case "seek_attention": {
+          // Affectionate tilt
+          rz += 0.12 * aiFade;
+          ry -= 0.07 * aiFade;
+          sx += 0.025 * aiFade;
+          break;
+        }
+
+        case "play": {
+          // Soft happy bouncing
+          const bounce =
+            Math.abs(
+              Math.sin(aiElapsed * 6)
+            ) *
+            0.12 *
+            aiFade;
+
+          y += bounce;
+
+          rz +=
+            Math.sin(aiElapsed * 8) *
+            0.07 *
+            aiFade;
+
+          sy += bounce * 0.25;
+          break;
+        }
+
+        case "rest":
+        case "idle":
+          break;
+      }
+    }
+
+    // ========================================
     // APPLY TRANSFORMS TO MOCHI ONLY
-    // ==========================================
+    // ========================================
 
     const damp = 8;
     const delta = Math.min(dt, 0.05);
@@ -547,7 +723,9 @@ export default function MochiAnimated({
           event.stopPropagation();
           setHovered(true);
         }}
-        onPointerOut={() => setHovered(false)}
+        onPointerOut={() =>
+          setHovered(false)
+        }
         onClick={(event) => {
           event.stopPropagation();
           onPet();
