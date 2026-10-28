@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local Mochi memory
+backend/mochi_memory.db
+
+# Environment files
+.env
+.venv/

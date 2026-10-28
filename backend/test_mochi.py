@@ -171,9 +171,9 @@ class MochiTests(unittest.TestCase):
             "pet",
         )
 
-        self.assertEqual(
+        self.assertIn(
             result,
-            mochi.FALLBACK["pet"],
+            mochi.FALLBACK_VARIANTS["pet"],
         )
 
 
